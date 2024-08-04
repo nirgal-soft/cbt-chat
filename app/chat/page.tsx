@@ -1,21 +1,21 @@
-// app/page.tsx
+// app/chat/page.tsx
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import Auth from '../components/Auth'
+import ChatInterface from '../../components/ChatInterface'
 
 export const dynamic = 'force-dynamic'
 
-export default async function Home() {
+export default async function ChatPage() {
   const supabase = createServerComponentClient({ cookies })
   
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  if (session) {
-    redirect('/chat')
+  if (!session) {
+    redirect('/')
   }
 
-  return <Auth />
+  return <ChatInterface />
 }
