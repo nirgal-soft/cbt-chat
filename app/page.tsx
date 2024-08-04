@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 
 interface Message {
   text: string;
@@ -13,6 +13,13 @@ export default function Home() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showInstructions, setShowInstructions] = useState(true)
+  const messagesEndRef = useRef<null | HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(scrollToBottom, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,12 +69,12 @@ export default function Home() {
   }
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      <div className="w-full max-w-2xl p-6 bg-white rounded-lg shadow-xl">
-        <h1 className="text-3xl font-bold mb-6 text-orange-700">CBT Helpdesk</h1>
-        <div className="bg-orange-50 p-4 h-96 overflow-y-auto mb-4 rounded-lg border border-orange-200">
+    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4 sm:p-6">
+      <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden flex flex-col h-[calc(100vh-2rem)] sm:h-[600px]">
+        <h1 className="text-2xl sm:text-3xl font-bold p-4 text-orange-700 border-b border-orange-200">Friendly Chat</h1>
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-orange-50">
           {showInstructions && (
-            <div className="text-gray-500 italic mb-4">
+            <div className="text-gray-500 italic mb-4 p-3 bg-white rounded-lg border border-orange-200 shadow-sm">
               <p>Welcome to Friendly Chat! Here&apos;s how to use this chatbot:</p>
               <ul className="list-disc list-inside ml-4 mt-2">
                 <li>Type your message in the input box below</li>
@@ -78,8 +85,8 @@ export default function Home() {
             </div>
           )}
           {messages.map((message, index) => (
-            <div key={index} className={`mb-3 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}>
-              <span className={`inline-block p-3 rounded-lg ${
+            <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <span className={`inline-block p-3 rounded-lg max-w-[80%] ${
                 message.sender === 'user' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-white text-orange-800 border border-orange-300'
@@ -93,23 +100,26 @@ export default function Home() {
               Thinking...
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSubmit} className="flex">
-          <input
-            type="text"
-            value={input}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            className="flex-grow p-3 border border-orange-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 bg-white"
-            placeholder="Type your message..."
-            disabled={isLoading}
-          />
-          <button 
-            type="submit" 
-            className="bg-orange-500 text-white p-3 rounded-r-lg hover:bg-orange-600 transition-colors disabled:bg-orange-300"
-            disabled={isLoading}
-          >
-            Send
-          </button>
+        <form onSubmit={handleSubmit} className="p-4 border-t border-orange-200 bg-white">
+          <div className="flex rounded-lg border border-orange-300 overflow-hidden">
+            <input
+              type="text"
+              value={input}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+              className="flex-grow p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 bg-white"
+              placeholder="Type your message..."
+              disabled={isLoading}
+            />
+            <button 
+              type="submit" 
+              className="bg-orange-500 text-white px-4 py-2 hover:bg-orange-600 transition-colors disabled:bg-orange-300"
+              disabled={isLoading}
+            >
+              Send
+            </button>
+          </div>
         </form>
       </div>
     </main>
