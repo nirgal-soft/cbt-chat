@@ -68,7 +68,7 @@ export default function ChatInterface() {
           .single()
 
         if (userError) {
-          throw new Error(`Error inserting user message: ${userError.message}`)
+          throw userError
         }
 
         setMessages(prevMessages => [...prevMessages, userMessage])
@@ -87,10 +87,9 @@ export default function ChatInterface() {
         }
 
         const data = await response.json()
-        console.log('Received from API:', data)
 
         if (data.error) {
-          throw new Error(`API error: ${data.error}`)
+          throw new Error(data.error)
         }
 
         if (!data.reply || !data.reply.content) {
@@ -105,16 +104,23 @@ export default function ChatInterface() {
           .single()
 
         if (botError) {
-          throw new Error(`Error inserting bot message: ${botError.message}`)
+          throw botError
         }
 
         setMessages(prevMessages => [...prevMessages, botMessage])
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error in handleSubmit:', error)
-        // Show error message to user
+        let errorMessage = 'An unknown error occurred. Please try again.';
+        
+        if (error instanceof Error) {
+          errorMessage = `An error occurred: ${error.message}. Please try again.`;
+        } else if (typeof error === 'string') {
+          errorMessage = `An error occurred: ${error}. Please try again.`;
+        }
+        
         setMessages(prevMessages => [...prevMessages, { 
           id: Date.now().toString(), 
-          content: `An error occurred: ${error.message}. Please try again.`, 
+          content: errorMessage, 
           is_bot: true,
           user_id: userId 
         }])
