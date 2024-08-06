@@ -1,25 +1,31 @@
-// app/layout.tsx
-import './globals.css'  // Make sure this import is present
+'use client'
+
+import './globals.css'
+import { useState } from 'react'
 import { ToastProvider } from '../contexts/ToastContext'
-import { Inter } from 'next/font/google'
+import MenuBar from '../components/MenuBar'
+import Sidebar from '../components/Sidebar'
 
-const inter = Inter({ subsets: ['latin'] })
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-export const metadata = {
-  title: 'Friendly Chat',
-  description: 'A simple chat application',
-}
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-gradient-to-br from-amber-50 to-orange-100 min-h-screen`}>
+      <body className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
         <ToastProvider>
-          {children}
+          <div className="flex flex-col h-screen">
+            <MenuBar onSidebarToggle={toggleSidebar} />
+            <div className="flex flex-grow overflow-hidden">
+              <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+              <main className="flex-grow overflow-auto">
+                {children}
+              </main>
+            </div>
+          </div>
         </ToastProvider>
       </body>
     </html>
