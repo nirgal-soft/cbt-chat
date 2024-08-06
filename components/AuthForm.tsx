@@ -22,7 +22,7 @@ export default function AuthForm() {
     if (error) {
       showToast(error.message, 'error')
     } else {
-      showToast("Sign up successful! Please check your email for confirmation.", 'success')
+      showToast("Sign up successful!.", 'success')
       setEmail('')
       setPassword('')
     }
