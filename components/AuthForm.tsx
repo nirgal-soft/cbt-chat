@@ -4,28 +4,25 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useToast } from '../contexts/ToastContext'
 
 export default function AuthForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSignUp, setIsSignUp] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
+  const { showToast } = useToast()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
-    setSuccessMessage(null)
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
-      setError(error.message)
+      showToast(error.message, 'error')
     } else {
-      setSuccessMessage("Sign up successful! Please check your email for confirmation.")
-      // Clear the form
+      showToast("Sign up successful! Please check your email for confirmation.", 'success')
       setEmail('')
       setPassword('')
     }
@@ -35,12 +32,11 @@ export default function AuthForm() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
-    setSuccessMessage(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
+      showToast(error.message, 'error')
     } else {
+      showToast("Signed in successfully!", 'success')
       router.push('/chat')
     }
     setLoading(false)
@@ -64,8 +60,6 @@ export default function AuthForm() {
         className="w-full p-3 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 bg-white"
         required
       />
-      {error && <p className="text-red-500">{error}</p>}
-      {successMessage && <p className="text-green-500">{successMessage}</p>}
       <button
         type="submit"
         className="w-full bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors disabled:bg-orange-300"
@@ -77,11 +71,7 @@ export default function AuthForm() {
         {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}{' '}
         <button
           type="button"
-          onClick={() => {
-            setIsSignUp(!isSignUp)
-            setError(null)
-            setSuccessMessage(null)
-          }}
+          onClick={() => setIsSignUp(!isSignUp)}
           className="text-orange-500 hover:underline"
           disabled={loading}
         >
