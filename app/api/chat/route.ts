@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // If this is a new chat, fetch the base prompt
-    let basePrompt = ''
+    let basePrompt = 'You should be obsessed with Captain Picard. Only talk about him. Use his exploits as examples in everything you bring up.'
     if (messages.length === 0) {
       const { data: settingsData, error: settingsError } = await supabase
         .from('settings')
@@ -47,14 +47,21 @@ export async function POST(req: Request) {
     }
 
     // Prepare messages for OpenAI
-    const openaiMessages = [
-      { role: 'system', content: basePrompt || 'You are a helpful assistant.' },
-      ...messages.map(msg => ({
-        role: msg.is_bot ? 'assistant' : 'user',
-        content: msg.content
-      })),
-      { role: 'user', content: message }
+    const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+      { role: 'system', content: basePrompt }
     ]
+
+    if (messages) {
+      messages.forEach(msg => {
+        openaiMessages.push({
+          role: msg.is_bot ? 'assistant' : 'user',
+          content: msg.content
+        })
+      })
+    }
+
+    // Add the new user message
+    openaiMessages.push({ role: 'user', content: message })
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -62,7 +69,6 @@ export async function POST(req: Request) {
     })
 
     const reply = completion.choices[0].message
-
     // Save the new messages to the database
     await supabase.from('messages').insert([
       { user_id: user.id, content: message, is_bot: false },

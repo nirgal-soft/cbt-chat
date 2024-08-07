@@ -34,14 +34,14 @@ export default function Settings() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <h1 className="text-2xl font-bold mb-4 text-gray-900">Settings</h1>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold mb-2">Clear Chat History</h2>
-        <p className="mb-2">This action will delete all your chat messages. This cannot be undone.</p>
+        <h2 className="text-xl font-semibold mb-2 text-gray-900">Clear Chat History</h2>
+        <p className="mb-2 text-gray-900">This action will delete all your chat messages. This cannot be undone.</p>
         <button
           onClick={clearChatHistory}
           disabled={clearing}
-          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:bg-red-300 disabled:cursor-not-allowed"
+          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:bg-red-300 disabled:cursor-not-allowed text-gray-900"
         >
           {clearing ? 'Clearing...' : 'Clear Chat History'}
         </button>
