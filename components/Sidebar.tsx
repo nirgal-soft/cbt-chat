@@ -1,5 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import { useAdminStatus } from '../hooks/useAdminStatus';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -7,6 +9,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { isAdmin, isLoading } = useAdminStatus();
+
   if (!isOpen) return null;
 
   return (
@@ -20,14 +24,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       <nav className="p-4">
         <ul className="space-y-2">
           <li>
-            <a href="#" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Home</a>
+            <Link href="/chat" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Home</Link>
           </li>
           <li>
-            <a href="#" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Profile</a>
+            <Link href="/profile" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Profile</Link>
           </li>
           <li>
-            <a href="#" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Settings</a>
+            <Link href="/settings" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Settings</Link>
           </li>
+          {!isLoading && isAdmin && (
+            <li>
+              <Link href="/admin/settings" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Admin Settings</Link>
+            </li>
+          )}
         </ul>
       </nav>
     </div>

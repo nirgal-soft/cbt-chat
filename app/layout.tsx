@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <MenuBar onSidebarToggle={toggleSidebar} />
             <div className="flex flex-grow overflow-hidden">
               <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-              <main className="flex-grow overflow-auto">
+              <main className={`flex-grow overflow-auto transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
                 {children}
               </main>
             </div>

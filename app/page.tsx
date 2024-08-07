@@ -1,4 +1,3 @@
-// app/page.tsx
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -17,5 +16,11 @@ export default async function Home() {
     redirect('/chat')
   }
 
-  return <Auth />
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
+      <div className="w-full max-w-md p-8">
+        <Auth />
+      </div>
+    </div>
+  )
 }

@@ -1,4 +1,3 @@
-// components/Auth.tsx
 import AuthForm from './AuthForm'
 
 export default function Auth() {

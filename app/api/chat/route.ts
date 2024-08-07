@@ -1,4 +1,3 @@
-// app/api/chat/route.ts
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -18,36 +17,44 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json()
-    const message = body.message
-
-    if (typeof message !== 'string' || message.trim() === '') {
-      return NextResponse.json({ error: 'Invalid message' }, { status: 400 })
-    }
+    const { message } = await req.json()
 
     // Fetch user's chat history
-    const { data: messages } = await supabase
+    const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('content, is_bot')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: true })
-      .limit(10) // Limit to last 10 messages for context
 
-    // Prepare messages for OpenAI
-    const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-      { role: 'system', content: 'You are a helpful assistant.' }
-    ]
-
-    if (messages) {
-      messages.forEach(msg => {
-        openaiMessages.push({
-          role: msg.is_bot ? 'assistant' : 'user',
-          content: msg.content
-        })
-      })
+    if (messagesError) {
+      throw new Error('Error fetching message history')
     }
 
-    // Add the new user message
-    openaiMessages.push({ role: 'user', content: message })
+    // If this is a new chat, fetch the base prompt
+    let basePrompt = ''
+    if (messages.length === 0) {
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('settings')
+        .select('base_prompt')
+        .single()
+
+      if (settingsError) {
+        console.error('Error fetching base prompt:', settingsError)
+      } else {
+        basePrompt = settingsData.base_prompt
+        console.log(basePrompt)
+      }
+    }
+
+    // Prepare messages for OpenAI
+    const openaiMessages = [
+      { role: 'system', content: basePrompt || 'You are a helpful assistant.' },
+      ...messages.map(msg => ({
+        role: msg.is_bot ? 'assistant' : 'user',
+        content: msg.content
+      })),
+      { role: 'user', content: message }
+    ]
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -55,6 +62,12 @@ export async function POST(req: Request) {
     })
 
     const reply = completion.choices[0].message
+
+    // Save the new messages to the database
+    await supabase.from('messages').insert([
+      { user_id: user.id, content: message, is_bot: false },
+      { user_id: user.id, content: reply.content, is_bot: true }
+    ])
 
     return NextResponse.json({ reply })
   } catch (error) {

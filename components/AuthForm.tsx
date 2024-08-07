@@ -1,4 +1,3 @@
-// components/AuthForm.tsx
 'use client'
 
 import { useState } from 'react'
@@ -18,11 +17,17 @@ export default function AuthForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
     if (error) {
       showToast(error.message, 'error')
-    } else {
-      showToast("Sign up successful!.", 'success')
+    } else if (data) {
+      showToast("Sign up successful! Please check your email for confirmation.", 'success')
       setEmail('')
       setPassword('')
     }
