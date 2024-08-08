@@ -11,29 +11,55 @@ export default function AuthForm() {
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createClientComponentClient({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  })  
   const { showToast } = useToast()
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  e.preventDefault()
+  setLoading(true)
+  try {
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // data: {
+        //   role: 'user' // Set a default role
+        // }
       },
     })
     if (error) {
+      console.error('Signup error:', error)
       showToast(error.message, 'error')
-    } else if (data) {
-      showToast("Sign up successful! Please check your email for confirmation.", 'success')
+    } else if (data.user) {
+      console.log('Signup successful:', data)
+      showToast("Sign up successful!", 'success')
       setEmail('')
       setPassword('')
+      
+      // Automatically sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      if (signInError) {
+        console.error('Auto sign-in error:', signInError)
+        showToast("Sign up successful, but couldn't automatically sign in. Please sign in manually.", 'error')
+      } else {
+        showToast("Signed in successfully!", 'success')
+        router.push('/chat') // Redirect to the chat page or your desired route
+      }
     }
-    setLoading(false)
+  } catch (err) {
+    console.error('Unexpected error during signup:', err)
+    showToast("An unexpected error occurred", 'error')
   }
-
+  setLoading(false)
+}
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
