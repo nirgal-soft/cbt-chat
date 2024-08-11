@@ -2,50 +2,97 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 
 interface Message {
   id: string;
   content: string;
-  is_bot: boolean;
-  user_id: string;
+  sender: 'user' | 'ai';
+  conversation_id: string;
 }
 
-export default function ChatInterface() {
+interface Conversation {
+  id: string;
+  title: string;
+}
+
+interface ChatInterfaceProps {
+  currentConversationId: string | null;
+  onConversationChange: (conversationId: string | null) => void;
+}
+
+export default function ChatInterface({ currentConversationId, onConversationChange }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showInstructions, setShowInstructions] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
   const messagesEndRef = useRef<null | HTMLDivElement>(null)
-  const supabase = createClientComponentClient()
   const router = useRouter()
 
   useEffect(() => {
-    const fetchUserAndMessages = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/') // Redirect to login if not authenticated
-        return
-      }
-      setUserId(user.id)
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true })
-      
-      if (error) {
-        console.error('Error fetching messages:', error)
-      } else {
-        setMessages(data || [])
-        setShowInstructions(data?.length === 0)
-      }
-    }
+    fetchConversations()
+  }, [])
 
-    fetchUserAndMessages()
-  }, [router, supabase])
+  useEffect(() => {
+    if (currentConversationId) {
+      fetchMessages(currentConversationId)
+    } else {
+      setMessages([])
+      setShowInstructions(true)
+    }
+  }, [currentConversationId])
+
+  const fetchConversations = async () => {
+    try {
+      const response = await fetch('/api/conversations')
+      if (!response.ok) {
+        throw new Error('Failed to fetch conversations')
+      }
+      const data = await response.json()
+      setConversations(data)
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+    }
+  }
+
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/messages?conversation_id=${conversationId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages')
+      }
+      const data = await response.json()
+      setMessages(data)
+      setShowInstructions(data.length === 0)
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    }
+  }
+
+  const saveMessage = async (content: string, sender: 'user' | 'ai') => {
+    if (!currentConversationId) return
+
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          conversation_id: currentConversationId,
+          sender
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save message')
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error saving message:', error)
+    }
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -55,99 +102,104 @@ export default function ChatInterface() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (input.trim() && !isLoading && userId) {
+    if (input.trim() && !isLoading && currentConversationId) {
       setIsLoading(true)
       setShowInstructions(false)
 
       try {
-        // Insert user message to Supabase
-        const { data: userMessage, error: userError } = await supabase
-          .from('messages')
-          .insert({ content: input, is_bot: false, user_id: userId })
-          .select()
-          .single()
-
-        if (userError) {
-          throw userError
-        }
-
+        // Save user message
+        const userMessage = await saveMessage(input, 'user')
         setMessages(prevMessages => [...prevMessages, userMessage])
         setInput('')
 
-        const response = await fetch('/api/chat', {
+        // Send message to AI
+        const chatResponse = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: input }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: input,
+            conversationId: currentConversationId
+          }),
         })
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        if (!chatResponse.ok) {
+          throw new Error('Failed to get AI response')
         }
 
-        const data = await response.json()
+        const chatData = await chatResponse.json()
 
-        if (data.error) {
-          throw new Error(data.error)
-        }
+        // Save AI response
+        const aiMessage = await saveMessage(chatData.reply.content, 'ai')
+        setMessages(prevMessages => [...prevMessages, aiMessage])
 
-        if (!data.reply || !data.reply.content) {
-          throw new Error('Invalid response from API')
-        }
-
-        // Insert bot message to Supabase
-        const { data: botMessage, error: botError } = await supabase
-          .from('messages')
-          .insert({ content: data.reply.content, is_bot: true, user_id: userId })
-          .select()
-          .single()
-
-        if (botError) {
-          throw botError
-        }
-
-        setMessages(prevMessages => [...prevMessages, botMessage])
-      } catch (error: unknown) {
+      } catch (error) {
         console.error('Error in handleSubmit:', error)
-        let errorMessage = 'An unknown error occurred. Please try again.';
-        
-        if (error instanceof Error) {
-          errorMessage = `An error occurred: ${error.message}. Please try again.`;
-        } else if (typeof error === 'string') {
-          errorMessage = `An error occurred: ${error}. Please try again.`;
-        }
-        
-        setMessages(prevMessages => [...prevMessages, { 
-          id: Date.now().toString(), 
-          content: errorMessage, 
-          is_bot: true,
-          user_id: userId 
-        }])
+        // You might want to show an error message to the user here
       } finally {
         setIsLoading(false)
       }
     }
   }
 
+  const createNewConversation = async () => {
+    const title = prompt('Enter a title for the new conversation:')
+    if (title) {
+      try {
+        const response = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        })
+        if (!response.ok) {
+          throw new Error('Failed to create conversation')
+        }
+        const data = await response.json()
+        setConversations(prev => [data, ...prev])
+        onConversationChange(data.id)
+      } catch (error) {
+        console.error('Error creating new conversation:', error)
+        // You might want to show an error message to the user here
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-amber-50 to-orange-100">
+      <div className="p-4 bg-white border-b border-orange-200">
+        <select 
+          value={currentConversationId || ''}
+          onChange={(e) => onConversationChange(e.target.value || null)}
+          className="p-2 border border-orange-300 rounded-lg mr-2"
+        >
+          <option value="">Select a conversation</option>
+          {conversations.map(conv => (
+            <option key={conv.id} value={conv.id}>{conv.title}</option>
+          ))}
+        </select>
+        <button 
+          onClick={createNewConversation}
+          className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+        >
+          New Conversation
+        </button>
+      </div>
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
         {showInstructions && (
           <div className="text-gray-500 italic mb-4 p-3 bg-white rounded-lg border border-orange-200 shadow-sm">
-            <p>Welcome to Friendly Chat! Here&apos;s how to use this chatbot:</p>
+            <p>Welcome to Friendly Chat! Here's how to use this chatbot:</p>
             <ul className="list-disc list-inside ml-4 mt-2">
+              <li>Select a conversation from the dropdown or create a new one</li>
               <li>Type your message in the input box below</li>
-              <li>Press &apos;Send&apos; or hit Enter to send your message</li>
+              <li>Press 'Send' or hit Enter to send your message</li>
               <li>Wait for the bot to respond</li>
               <li>You can ask questions, seek advice, or just chat!</li>
             </ul>
           </div>
         )}
         {messages.map((message) => (
-          <div key={message.id} className={`flex ${message.is_bot ? 'justify-start' : 'justify-end'}`}>
+          <div key={message.id} className={`flex ${message.sender === 'ai' ? 'justify-start' : 'justify-end'}`}>
             <span className={`inline-block p-3 rounded-lg max-w-[80%] ${
-              message.is_bot
+              message.sender === 'ai'
                 ? 'bg-white text-orange-800 border border-orange-300'
                 : 'bg-orange-500 text-white'
             }`}>
@@ -170,12 +222,12 @@ export default function ChatInterface() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
             className="flex-grow p-3 border border-orange-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 bg-white"
             placeholder="Type your message..."
-            disabled={isLoading}
+            disabled={isLoading || !currentConversationId}
           />
           <button 
             type="submit" 
             className="bg-orange-500 text-white px-4 py-2 rounded-r-lg hover:bg-orange-600 transition-colors disabled:bg-orange-300"
-            disabled={isLoading}
+            disabled={isLoading || !currentConversationId}
           >
             Send
           </button>

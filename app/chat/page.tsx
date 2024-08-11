@@ -2,7 +2,7 @@
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import ChatInterface from '../../components/ChatInterface'
+import ChatWrapper from '../../components/ChatWrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,5 +17,5 @@ export default async function ChatPage() {
     redirect('/')
   }
 
-  return <ChatInterface />
+  return <ChatWrapper />
 }
