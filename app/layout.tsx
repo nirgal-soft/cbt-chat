@@ -13,6 +13,7 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(Date.now());
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -21,6 +22,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const handleConversationSelect = (conversationId: string) => {
     setCurrentConversationId(conversationId);
     setIsSidebarOpen(false); // Optionally close the sidebar after selection
+  };
+
+  // Function to trigger a refresh, which updates the refreshTrigger
+  const triggerRefresh = () => {
+    setRefreshTrigger(Date.now());
   };
 
   return (
@@ -34,6 +40,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 isOpen={isSidebarOpen} 
                 onClose={() => setIsSidebarOpen(false)}
                 onConversationSelect={handleConversationSelect}
+                currentConversationId={currentConversationId}
+                refreshTrigger={refreshTrigger} // Passing the numeric value
               />
               <main className={`flex-grow overflow-auto transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
                 {React.Children.map(children, child =>

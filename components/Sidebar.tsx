@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { useAdminStatus } from '../hooks/useAdminStatus';
@@ -8,6 +8,8 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onConversationSelect: (conversationId: string) => void;
+  currentConversationId: string | null;
+  refreshTrigger: number;
 }
 
 interface Conversation {
@@ -15,27 +17,45 @@ interface Conversation {
   title: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onConversationSelect }) => {
-  const { isAdmin, isLoading } = useAdminStatus();
+const Sidebar: React.FC<SidebarProps> = ({ 
+  isOpen, 
+  onClose, 
+  onConversationSelect, 
+  currentConversationId,
+  refreshTrigger 
+}) => {
+  const { isAdmin, isLoading: isAdminLoading } = useAdminStatus();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const supabase = createClientComponentClient()
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClientComponentClient();
 
-  useEffect(() => {
-    const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const { data, error } = await supabase
         .from('conversations')
-        .select('*')
-        .order('updated_at', { ascending: false })
+        .select('id, title')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       
       if (error) {
-        console.error('Error fetching conversations:', error)
-      } else {
-        setConversations(data || [])
+        throw error;
       }
+      
+      setConversations(data || []);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setIsLoading(false);
     }
+  }, [supabase]);
 
-    fetchConversations()
-  }, [supabase])
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations, refreshTrigger]);
 
   if (!isOpen) return null;
 
@@ -58,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onConversationSelect
           <li>
             <Link href="/settings" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Settings</Link>
           </li>
-          {!isLoading && isAdmin && (
+          {!isAdminLoading && isAdmin && (
             <li>
               <Link href="/admin/settings" className="block py-2 px-4 text-gray-700 hover:bg-orange-100 rounded">Admin Settings</Link>
             </li>
@@ -67,18 +87,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onConversationSelect
       </nav>
       <div className="p-4 border-t border-gray-200">
         <h3 className="text-lg font-semibold text-orange-600 mb-2">Conversations</h3>
-        <ul className="space-y-1">
-          {conversations.map(conv => (
-            <li key={conv.id}>
-              <button
-                onClick={() => onConversationSelect(conv.id)}
-                className="w-full text-left py-1 px-2 text-gray-700 hover:bg-orange-100 rounded truncate"
-              >
-                {conv.title}
-              </button>
-            </li>
-          ))}
-        </ul>
+        {isLoading ? (
+          <p>Loading conversations...</p>
+        ) : (
+          <ul className="space-y-1 mt-2">
+            {conversations.map(conv => (
+              <li key={conv.id}>
+                <button
+                  onClick={() => onConversationSelect(conv.id)}
+                  className={`w-full text-left py-1 px-2 rounded truncate ${
+                    currentConversationId === conv.id
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  {conv.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
